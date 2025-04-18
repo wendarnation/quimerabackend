@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Zapatilla {
+  id              Int              @id @default(autoincrement())
+  marca           String           @db.VarChar(100)
+  modelo          String           @db.VarChar(200)
+  imagen          String?          @db.VarChar(255)
+  sku             String           @unique @db.VarChar(50)
+  descripcion     String?
+  fecha_creacion  DateTime         @default(now())
+  activa          Boolean          @default(true)
+  
+  zapatillasTienda  ZapatillaTienda[]
+  comentarios      Comentario[]
+  valoraciones     Valoracion[]
+  listasZapatillas ListaFavoritosZapatilla[]
+
+  @@map("zapatillas")
+}
+
+model Tienda {
+  id              Int              @id @default(autoincrement())
+  nombre          String           @db.VarChar(100)
+  url             String           @db.VarChar(255)
+  activa          Boolean          @default(true)
+  
+  zapatillasTienda  ZapatillaTienda[]
+
+  @@map("tiendas")
+}
+
+model Usuario {
+  id              Int              @id @default(autoincrement())
+  email           String           @unique @db.VarChar(100)
+  rol             String           @default("usuario") @db.VarChar(20)
+  fecha_registro  DateTime         @default(now())
+  auth0_id        String?          @unique  // Nuevo campo para el ID de Auth0
+  
+  comentarios      Comentario[]
+  valoraciones     Valoracion[]
+  listasFavoritos  ListaFavoritos[]
+
+  @@map("usuarios")
+}
+
+
+model ZapatillaTienda {
+  id                  Int           @id @default(autoincrement())
+  zapatilla_id        Int
+  tienda_id           Int
+  modelo_tienda       String?       @db.VarChar(200)
+  precio              Decimal       @db.Decimal(10, 2)
+  disponible          Boolean       @default(true)
+  url_producto        String        @db.VarChar(255)
+  fecha_actualizacion DateTime      @default(now())
+  
+  zapatilla           Zapatilla     @relation(fields: [zapatilla_id], references: [id], onDelete: Cascade)
+  tienda              Tienda        @relation(fields: [tienda_id], references: [id], onDelete: Cascade)
+  tallas              Talla[]
+
+  @@unique([zapatilla_id, tienda_id], name: "unique_zapatilla_tienda")
+  @@map("zapatillas_tienda")
+}
+
+model Talla {
+  id                    Int             @id @default(autoincrement())
+  zapatilla_tienda_id   Int
+  talla                 String          @db.VarChar(20)
+  disponible            Boolean         @default(true)
+  fecha_actualizacion   DateTime        @default(now())
+  
+  zapatillaTienda       ZapatillaTienda @relation(fields: [zapatilla_tienda_id], references: [id], onDelete: Cascade)
+
+  @@unique([zapatilla_tienda_id, talla], name: "unique_talla_zapatilla_tienda")
+  @@map("tallas")
+}
+
+model Comentario {
+  id              Int           @id @default(autoincrement())
+  zapatilla_id    Int
+  usuario_id      Int
+  texto           String
+  fecha           DateTime      @default(now())
+  
+  zapatilla       Zapatilla     @relation(fields: [zapatilla_id], references: [id], onDelete: Cascade)
+  usuario         Usuario       @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("comentarios")
+}
+
+model Valoracion {
+  id              Int           @id @default(autoincrement())
+  zapatilla_id    Int
+  usuario_id      Int
+  puntuacion      Int
+  fecha           DateTime      @default(now())
+  
+  zapatilla       Zapatilla     @relation(fields: [zapatilla_id], references: [id], onDelete: Cascade)
+  usuario         Usuario       @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@unique([zapatilla_id, usuario_id], name: "unique_valoracion_usuario")
+  @@map("valoraciones")
+}
+
+model ListaFavoritos {
+  id              Int           @id @default(autoincrement())
+  usuario_id      Int
+  nombre          String        @db.VarChar(100)
+  fecha_creacion  DateTime      @default(now())
+  predeterminada  Boolean       @default(false)
+  
+  usuario         Usuario       @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  zapatillas      ListaFavoritosZapatilla[]
+
+  @@unique([usuario_id, predeterminada], name: "unique_lista_predeterminada")
+  @@map("listas_favoritos")
+}
+
+model ListaFavoritosZapatilla {
+  id              Int           @id @default(autoincrement())
+  lista_id        Int
+  zapatilla_id    Int
+  fecha_agregado  DateTime      @default(now())
+  
+  lista           ListaFavoritos @relation(fields: [lista_id], references: [id], onDelete: Cascade)
+  zapatilla       Zapatilla      @relation(fields: [zapatilla_id], references: [id], onDelete: Cascade)
+
+  @@unique([lista_id, zapatilla_id], name: "unique_zapatilla_lista")
+  @@map("lista_favoritos_zapatillas")
+}
