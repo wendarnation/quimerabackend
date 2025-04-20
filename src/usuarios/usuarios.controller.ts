@@ -1,3 +1,4 @@
+// src/usuarios/usuarios.controller.ts
 import {
   Controller,
   Get,
@@ -22,6 +23,8 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   create(@Body() createUsuarioDto: CreateUsuarioDto) {
     return this.usuariosService.create(createUsuarioDto);
   }
@@ -37,6 +40,45 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
     return this.usuariosService.findOne(req.user.id);
+  }
+
+  @Get('profile/status')
+  @UseGuards(JwtAuthGuard)
+  getProfileStatus(@Request() req) {
+    return {
+      profileComplete: req.user.profileComplete,
+      missingFields: {
+        nombre_completo: !req.user.nombre_completo,
+        nickname: !req.user.nickname,
+      },
+    };
+  }
+
+  // @Patch('profile')
+  // @UseGuards(JwtAuthGuard)
+  // updateProfile(@Request() req, @Body() updateUsuarioDto: UpdateUsuarioDto) {
+  //   return this.usuariosService.updateProfile(req.user.id, updateUsuarioDto);
+  // }
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Request() req,
+    @Body() updateUsuarioDto: UpdateUsuarioDto,
+  ) {
+    // Extraer el auth0Id del token JWT
+    const auth0Id = req.user.auth0Id;
+
+    // Buscar primero al usuario por auth0Id
+    const usuario = await this.usuariosService.findByAuth0Id(auth0Id);
+
+    // Actualizar usando el ID de la base de datos
+    return this.usuariosService.updateProfile(usuario.id, updateUsuarioDto);
+  }
+
+  @Delete('profile')
+  @UseGuards(JwtAuthGuard)
+  removeProfile(@Request() req) {
+    return this.usuariosService.remove(req.user.id);
   }
 
   @Get(':id')

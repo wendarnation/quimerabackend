@@ -1,18 +1,73 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { UsuariosController } from './usuarios.controller';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { UsuariosService } from './usuarios.service';
+import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { UpdateUsuarioDto } from './dto/update-usuario.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
-describe('UsuariosController', () => {
-  let controller: UsuariosController;
+@Controller('usuarios')
+export class UsuariosController {
+  constructor(private readonly usuariosService: UsuariosService) {}
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [UsuariosController],
-    }).compile();
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  create(@Body() createUsuarioDto: CreateUsuarioDto) {
+    return this.usuariosService.create(createUsuarioDto);
+  }
 
-    controller = module.get<UsuariosController>(UsuariosController);
-  });
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  findAll() {
+    return this.usuariosService.findAll();
+  }
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-});
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  getProfile(@Request() req) {
+    return this.usuariosService.findOne(req.user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@Request() req, @Body() updateUsuarioDto: UpdateUsuarioDto) {
+    return this.usuariosService.updateProfile(req.user.id, updateUsuarioDto);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.usuariosService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUsuarioDto: UpdateUsuarioDto,
+  ) {
+    return this.usuariosService.update(id, updateUsuarioDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.usuariosService.remove(id);
+  }
+}

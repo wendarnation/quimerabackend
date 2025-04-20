@@ -16,6 +16,7 @@ model Zapatilla {
   descripcion     String?
   fecha_creacion  DateTime         @default(now())
   activa          Boolean          @default(true)
+  categoria       String           @default("unisex")
   
   zapatillasTienda  ZapatillaTienda[]
   comentarios      Comentario[]
@@ -41,7 +42,10 @@ model Usuario {
   email           String           @unique @db.VarChar(100)
   rol             String           @default("usuario") @db.VarChar(20)
   fecha_registro  DateTime         @default(now())
-  auth0_id        String?          @unique  // Nuevo campo para el ID de Auth0
+  auth0_id        String?          @unique 
+  nombre_completo String?
+  nickname        String?         @unique
+  first_login     Boolean         @default(true)
   
   comentarios      Comentario[]
   valoraciones     Valoracion[]

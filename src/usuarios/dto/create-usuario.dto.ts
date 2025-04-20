@@ -1,24 +1,34 @@
+// src/usuarios/dto/create-usuario.dto.ts
 import {
-  IsNotEmpty,
   IsEmail,
+  IsNotEmpty,
   IsString,
   IsOptional,
-  IsIn,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateUsuarioDto {
-  @IsNotEmpty()
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 
-  // Eliminamos el campo password
-
-  @IsOptional()
   @IsString()
-  @IsIn(['usuario', 'admin'])
-  rol?: string = 'usuario';
-
   @IsOptional()
+  rol?: string;
+
   @IsString()
-  auth0_id?: string; // Añadimos el campo para el ID de Auth0
+  @IsNotEmpty()
+  auth0_id: string;
+
+  @IsString()
+  @IsOptional()
+  nombre_completo?: string;
+
+  @IsString()
+  @IsOptional()
+  nickname?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  first_login?: boolean;
 }

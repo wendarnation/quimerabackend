@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -6,16 +6,19 @@ import { JwtStrategy } from './jwt.strategy';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
+import { Auth0ManagementService } from './auth0-management.service';
+import { UsuariosModule } from '../usuarios/usuarios.module';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
-    ConfigModule, // Solo necesitamos ConfigModule para acceder a variables de entorno
+    ConfigModule,
     PrismaModule,
+    forwardRef(() => UsuariosModule),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, Auth0ManagementService],
+  exports: [AuthService, Auth0ManagementService],
 })
 export class AuthModule {}
