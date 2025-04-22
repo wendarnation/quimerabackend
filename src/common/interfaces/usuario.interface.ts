@@ -1,22 +1,19 @@
-export interface UsuarioBase {
+// Crear archivo src/auth/interfaces/usuario.interface.ts
+export interface UserPayload {
   id: number;
-  auth0_id: string;
+  auth0Id: string;
   email: string;
   rol: string;
-  fecha_registro: Date;
-  nombre_completo?: string | null;
-  nickname?: string | null;
+  nombre_completo: string | null;
+  nickname: string | null;
+  permissions: string[];
+  profileComplete: boolean;
+  isClientToken: boolean;
+  first_login: boolean;
 }
 
-export interface UsuarioSelectFields {
-  id?: boolean;
-  auth0_id?: boolean;
-  email?: boolean;
-  rol?: boolean;
-  fecha_registro?: boolean;
-  nombre_completo?: boolean;
-  nickname?: boolean;
-  listasFavoritos?: boolean;
-  comentarios?: boolean;
-  valoraciones?: boolean;
+export interface ProfileData {
+  nombre_completo?: string | null;
+  nickname?: string | null;
+  first_login?: boolean;
 }

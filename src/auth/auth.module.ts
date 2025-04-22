@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { Auth0ManagementService } from './auth0-management.service';
 import { UsuariosModule } from '../usuarios/usuarios.module';
+import { RolesGuard } from './roles.guard';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
     forwardRef(() => UsuariosModule),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, Auth0ManagementService],
-  exports: [AuthService, Auth0ManagementService],
+  providers: [AuthService, JwtStrategy, Auth0ManagementService, RolesGuard],
+  exports: [AuthService, Auth0ManagementService, RolesGuard],
 })
 export class AuthModule {}

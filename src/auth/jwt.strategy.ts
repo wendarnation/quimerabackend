@@ -1,176 +1,15 @@
-// // src/auth/jwt.strategy.ts
-// import { Injectable } from '@nestjs/common';
-// import { PassportStrategy } from '@nestjs/passport';
-// import { ExtractJwt, Strategy } from 'passport-jwt';
-// import { passportJwtSecret } from 'jwks-rsa';
-// import { ConfigService } from '@nestjs/config';
-// import { AuthService } from './auth.service';
-
-// @Injectable()
-// export class JwtStrategy extends PassportStrategy(Strategy) {
-//   constructor(
-//     private configService: ConfigService,
-//     private authService: AuthService,
-//   ) {
-//     super({
-//       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-//       secretOrKeyProvider: passportJwtSecret({
-//         cache: true,
-//         rateLimit: true,
-//         jwksRequestsPerMinute: 5,
-//         jwksUri: `https://${configService.get('AUTH0_DOMAIN')}/.well-known/jwks.json`,
-//       }),
-//       audience: configService.get('AUTH0_AUDIENCE'),
-//       issuer: `https://${configService.get('AUTH0_DOMAIN')}/`,
-//       algorithms: ['RS256'],
-//     });
-//   }
-
-//   async validate(payload: any) {
-//     // Obtener datos básicos del token
-//     const auth0Id = payload.sub;
-//     const email = payload.email;
-
-//     // Obtener nombre_completo y nickname del token si existen
-//     const nombreCompleto =
-//       payload.name ||
-//       (payload.user_metadata && payload.user_metadata.full_name) ||
-//       null;
-//     const nickname =
-//       payload.nickname ||
-//       (payload.user_metadata && payload.user_metadata.custom_nickname) ||
-//       null;
-
-//     // Sincronizar con la BD
-//     const user = await this.authService.findOrCreateUser(
-//       auth0Id,
-//       email,
-//       nombreCompleto,
-//       nickname,
-//     );
-
-//     // Añade una bandera para verificar si el perfil está completo
-//     const profileComplete = Boolean(user.nombre_completo && user.nickname);
-
-//     return {
-//       id: user.id, // ID de tu base de datos
-//       auth0Id: payload.sub,
-//       email: payload.email,
-//       rol: user.rol,
-//       nombre_completo: user.nombre_completo,
-//       nickname: user.nickname,
-//       permissions: payload.permissions || [], // Permisos de Auth0
-//       profileComplete,
-//     };
-//   }
-// }
-
-// // src/auth/jwt.strategy.ts
-// import { Injectable } from '@nestjs/common';
-// import { PassportStrategy } from '@nestjs/passport';
-// import { ExtractJwt, Strategy } from 'passport-jwt';
-// import { passportJwtSecret } from 'jwks-rsa';
-// import { ConfigService } from '@nestjs/config';
-// import { AuthService } from './auth.service';
-
-// @Injectable()
-// export class JwtStrategy extends PassportStrategy(Strategy) {
-//   constructor(
-//     private configService: ConfigService,
-//     private authService: AuthService,
-//   ) {
-//     super({
-//       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-//       secretOrKeyProvider: passportJwtSecret({
-//         cache: true,
-//         rateLimit: true,
-//         jwksRequestsPerMinute: 5,
-//         jwksUri: `https://${configService.get('AUTH0_DOMAIN')}/.well-known/jwks.json`,
-//       }),
-//       audience: configService.get('AUTH0_AUDIENCE'),
-//       issuer: `https://${configService.get('AUTH0_DOMAIN')}/`,
-//       algorithms: ['RS256'],
-//     });
-//   }
-
-//   async validate(payload: any) {
-//     // Detectar si es un token de cliente (M2M)
-//     if (payload.gty === 'client-credentials') {
-//       console.log('Usando token de cliente para pruebas');
-
-//       // Información del usuario de prueba
-//       const email = 'test@test.com';
-//       const auth0Id = payload.sub; // Usar el sub del token
-
-//       // Sincronizar con la BD (esto creará o recuperará el usuario)
-//       const user = await this.authService.findOrCreateUser(
-//         auth0Id,
-//         email,
-//         null,
-//         null,
-//       );
-
-//       return {
-//         id: user.id,
-//         auth0Id: auth0Id,
-//         email: email,
-//         rol: user.rol,
-//         nombre_completo: user.nombre_completo,
-//         nickname: user.nickname,
-//         permissions: payload.permissions || [],
-//         profileComplete: Boolean(user.nombre_completo && user.nickname),
-//       };
-//     }
-
-//     // Código para tokens de usuario normales
-//     const auth0Id = payload.sub;
-//     const email = payload.email;
-
-//     // Obtener nombre_completo y nickname del token si existen
-//     const nombreCompleto =
-//       payload.nombre_completo ||
-//       payload.name ||
-//       (payload.user_metadata && payload.user_metadata.full_name) ||
-//       null;
-//     const nickname =
-//       payload.nickname ||
-//       (payload.user_metadata && payload.user_metadata.custom_nickname) ||
-//       null;
-
-//     // Sincronizar con la BD
-//     const user = await this.authService.findOrCreateUser(
-//       auth0Id,
-//       email,
-//       nombreCompleto,
-//       nickname,
-//     );
-
-//     // Añade una bandera para verificar si el perfil está completo
-//     const profileComplete = Boolean(user.nombre_completo && user.nickname);
-
-//     return {
-//       id: user.id,
-//       auth0Id: payload.sub,
-//       email: payload.email,
-//       rol: user.rol,
-//       nombre_completo: user.nombre_completo,
-//       nickname: user.nickname,
-//       permissions: payload.permissions || [],
-//       profileComplete,
-//     };
-//   }
-// }
-
-// src/auth/jwt.strategy.ts
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { Usuario } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
+
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
@@ -192,78 +31,170 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         jwksRequestsPerMinute: 5,
         jwksUri: `https://${configService.get('AUTH0_DOMAIN')}/.well-known/jwks.json`,
       }),
-      audience: audiences, // Array de strings válidos
+      audience: audiences.length > 0 ? audiences : undefined, // Evita enviar un array vacío
       issuer: `https://${configService.get('AUTH0_DOMAIN')}/`,
       algorithms: ['RS256'],
     });
   }
 
   async validate(payload: any) {
-    console.log('Validando token JWT:', JSON.stringify(payload, null, 2));
-
-    // Determinar tipo de token y extraer información necesaria
-    const isClientToken = payload.gty === 'client-credentials';
-    const auth0Id = payload.sub;
-    const email =
-      payload.email || (isClientToken ? 'client@example.com' : undefined);
-
-    // Verificaciones básicas
-    if (!auth0Id) {
-      throw new UnauthorizedException(
-        'Token sin identificador de usuario (sub)',
-      );
-    }
-
-    if (!isClientToken && !email) {
-      throw new UnauthorizedException('Token de usuario sin email');
-    }
-
-    // Extraer información de perfil del token
-    const nombreCompleto = isClientToken
-      ? null
-      : payload.nombre_completo || payload.name || null;
-
-    const nickname = isClientToken ? null : payload.nickname || null;
-
     try {
-      // No crear usuarios con IDs de cliente en usuarios reales
-      let user;
+      this.logger.debug(
+        'Validando token JWT:',
+        JSON.stringify(payload, null, 2),
+      );
 
-      if (isClientToken) {
-        // Para tokens de cliente, opciones:
-        console.log('Usando token de cliente, ID:', auth0Id);
-        user = await this.authService.findOrCreateUser(
-          auth0Id,
-          email || 'client@example.com',
-          null,
-          null,
+      // Determinar tipo de token y extraer información necesaria
+      const isClientToken = payload.gty === 'client-credentials';
+      const auth0Id = payload.sub;
+
+      // Extraer email con más tolerancia a diferentes formatos de token
+      let email =
+        payload.email ||
+        (payload.user_metadata && payload.user_metadata.email) ||
+        (isClientToken ? 'client@example.com' : undefined);
+
+      // Verificaciones más flexibles para diferentes tipos de tokens
+      if (!auth0Id) {
+        this.logger.error('Token sin identificador de usuario (sub)');
+        throw new UnauthorizedException('Token sin identificador de usuario');
+      }
+
+      // Extraer información de perfil del token con más tolerancia
+      const nombreCompleto = isClientToken
+        ? null
+        : payload.nombre_completo ||
+          payload.name ||
+          (payload.user_metadata && payload.user_metadata.full_name) ||
+          null;
+
+      const nickname = isClientToken
+        ? null
+        : payload.nickname ||
+          (payload.user_metadata && payload.user_metadata.custom_nickname) ||
+          null;
+
+      // Extraer permisos del token con más tolerancia
+      const permissions = payload.permissions || [];
+      this.logger.debug('Permisos encontrados en token:', permissions);
+
+      // Buscar usuario existente con manejo de errores adicional
+      let user: Usuario | null = null;
+      let isFirstLogin = false;
+      let currentRol = 'usuario';
+
+      try {
+        user = await this.authService.findUserByAuth0Id(auth0Id);
+
+        if (user) {
+          this.logger.debug(
+            `Usuario existente encontrado, ID: ${user.id}, Rol: ${user.rol}`,
+          );
+          isFirstLogin = user.first_login;
+          currentRol = user.rol;
+
+          // Si el usuario existe pero no tenemos email (raro, pero posible)
+          if (!email && user.email) {
+            email = user.email;
+          }
+        } else {
+          this.logger.log(`Usuario con auth0Id ${auth0Id} no encontrado en BD`);
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Error al buscar usuario por auth0Id: ${error.message}`,
         );
+        // No lanzamos excepción aquí, simplemente asumimos que el usuario no existe
+      }
+
+      // Si el usuario no existe, crear uno nuevo
+      if (!user) {
+        if (!email) {
+          this.logger.error('No se pudo determinar email para usuario nuevo');
+          throw new UnauthorizedException(
+            'Token sin información de email para usuario nuevo',
+          );
+        }
+
+        this.logger.log('Usuario no encontrado, creando nuevo usuario');
+        isFirstLogin = true;
+
+        // Determinar rol inicial solo para usuarios nuevos
+        if (isClientToken) {
+          currentRol = 'sistema';
+        } else if (permissions && permissions.length > 0) {
+          this.logger.log('Usuario nuevo con permisos, asignando rol admin');
+          currentRol = 'admin';
+        }
+
+        try {
+          user = await this.authService.createUser(
+            auth0Id,
+            email,
+            nombreCompleto,
+            nickname,
+            currentRol,
+          );
+        } catch (createError) {
+          this.logger.error(`Error al crear usuario: ${createError.message}`);
+
+          // Intentar otra búsqueda por si existe pero hubo un error previo
+          try {
+            user = await this.authService.findUserByAuth0Id(auth0Id);
+            if (!user) {
+              throw createError; // Re-lanzar el error original si aún no encontramos al usuario
+            }
+
+            this.logger.log(
+              `Usuario encontrado en segundo intento: ${user.id}`,
+            );
+            isFirstLogin = user.first_login;
+            currentRol = user.rol;
+          } catch (secondError) {
+            this.logger.error(
+              `Error en segundo intento: ${secondError.message}`,
+            );
+            throw new UnauthorizedException(
+              'Error al crear o encontrar usuario',
+            );
+          }
+        }
       } else {
-        // Para tokens de usuario normales
-        console.log('Usando token de usuario normal, ID:', auth0Id);
-        user = await this.authService.findOrCreateUser(
-          auth0Id,
-          email || '',
-          nombreCompleto,
-          nickname,
-        );
+        // Solo actualizar rol en primer login si tiene permisos y no es ya admin
+        if (isFirstLogin && permissions.length > 0 && user.rol !== 'admin') {
+          this.logger.log('Primer login con permisos, actualizando a admin');
+          try {
+            user = await this.authService.updateUserRole(user.id, 'admin');
+            currentRol = 'admin';
+          } catch (updateError) {
+            this.logger.error(
+              `Error al actualizar rol: ${updateError.message}`,
+            );
+            // Continuamos con el rol actual en caso de error
+          }
+        }
       }
 
       const profileComplete = Boolean(user.nombre_completo && user.nickname);
 
+      // Construir el objeto de usuario para el request
       return {
         id: user.id,
         auth0Id: auth0Id,
         email: email || user.email,
-        rol: user.rol,
+        rol: currentRol,
         nombre_completo: user.nombre_completo,
         nickname: user.nickname,
-        permissions: payload.permissions || [],
+        permissions: permissions,
         profileComplete,
-        isClientToken, // Puede ser útil para lógica adicional
+        isClientToken,
+        first_login: isFirstLogin,
       };
     } catch (error) {
-      console.error('Error en JwtStrategy.validate:', error);
+      this.logger.error(
+        `Error en JwtStrategy.validate: ${error.message}`,
+        error.stack,
+      );
       throw new UnauthorizedException('Error al procesar el usuario');
     }
   }
