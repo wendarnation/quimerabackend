@@ -24,7 +24,7 @@ export class ZapatillasController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin:zapatillas')
+  @Roles('admin')
   create(@Body() createZapatillaDto: CreateZapatillaDto) {
     return this.zapatillasService.create(createZapatillaDto);
   }
@@ -41,7 +41,7 @@ export class ZapatillasController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin:zapatillas')
+  @Roles('admin')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateZapatillaDto: UpdateZapatillaDto,
@@ -51,7 +51,7 @@ export class ZapatillasController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin:zapatillas')
+  @Roles('admin')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.zapatillasService.remove(id);
   }
