@@ -132,7 +132,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
         // Determinar rol inicial solo para usuarios nuevos
         if (isClientToken) {
-          currentRol = 'sistema';
+          // Para tokens de cliente, asignar rol admin si tiene el permiso admin:zapatillas
+          if (permissions.includes('admin:zapatillas')) {
+            this.logger.log('Token de cliente con permiso admin:zapatillas, asignando rol admin');
+            currentRol = 'admin';
+          } else {
+            currentRol = 'sistema';
+          }
         } else if (permissions && permissions.length > 0) {
           this.logger.log('Usuario nuevo con permisos, asignando rol admin');
           currentRol = 'admin';
@@ -171,6 +177,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           }
         }
       } else {
+        // Para tokens de cliente existentes, actualizar rol si tiene permiso admin:zapatillas
+        if (isClientToken && permissions.includes('admin:zapatillas') && user.rol !== 'admin') {
+          this.logger.log('Token de cliente con permiso admin:zapatillas, actualizando rol a admin');
+          try {
+            user = await this.authService.updateUserRole(user.id, 'admin');
+            currentRol = 'admin';
+          } catch (updateError) {
+            this.logger.error(`Error al actualizar rol: ${updateError.message}`);
+            // Continuamos con el rol actual en caso de error
+          }
+        }
         // Solo actualizar rol en primer login si tiene permisos y no es ya admin
         if (isFirstLogin && permissions.length > 0 && user.rol !== 'admin') {
           this.logger.log('Primer login con permisos, actualizando a admin');
