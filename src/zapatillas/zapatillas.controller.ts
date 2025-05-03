@@ -16,7 +16,7 @@ import { CreateZapatillaDto } from './dto/create-zapatilla.dto';
 import { UpdateZapatillaDto } from './dto/update-zapatilla.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('zapatillas')
 export class ZapatillasController {
@@ -24,7 +24,7 @@ export class ZapatillasController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   create(@Body() createZapatillaDto: CreateZapatillaDto) {
     return this.zapatillasService.create(createZapatillaDto);
   }
@@ -41,7 +41,7 @@ export class ZapatillasController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateZapatillaDto: UpdateZapatillaDto,
@@ -51,7 +51,7 @@ export class ZapatillasController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.zapatillasService.remove(id);
   }

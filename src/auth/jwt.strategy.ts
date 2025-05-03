@@ -75,7 +75,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           null;
 
       // Extraer permisos del token con más tolerancia
-      const permissions = payload.permissions || [];
+      let permissions = payload.permissions || [];
+      
+      // Para tokens de cliente, también considerar los scopes como permisos
+      if (isClientToken && payload.scope) {
+        const scopes = typeof payload.scope === 'string' 
+          ? payload.scope.split(' ') 
+          : (Array.isArray(payload.scope) ? payload.scope : []);
+        
+        // Combinar permisos existentes con scopes
+        permissions = [...new Set([...permissions, ...scopes])];
+      }
+      
       this.logger.debug('Permisos encontrados en token:', permissions);
 
       // Buscar usuario existente con manejo de errores adicional

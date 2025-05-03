@@ -14,7 +14,7 @@ import { CreateTallaDto } from './dto/create-talla.dto';
 import { UpdateTallaDto } from './dto/update-talla.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('tallas')
 export class TallasController {
@@ -22,7 +22,7 @@ export class TallasController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin:zapatillas')
+  @Permissions('admin:zapatillas')
   create(@Body() createTallaDto: CreateTallaDto) {
     return this.tallasService.create(createTallaDto);
   }
@@ -39,7 +39,7 @@ export class TallasController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateTallaDto: UpdateTallaDto,
@@ -49,7 +49,7 @@ export class TallasController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.tallasService.remove(id);
   }

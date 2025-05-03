@@ -14,7 +14,7 @@ import { CreateZapatillaTiendaDto } from './dto/create-zapatilla-tienda.dto';
 import { UpdateZapatillaTiendaDto } from './dto/update-zapatilla-tienda.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('zapatillas-tienda')
 export class ZapatillasTiendaController {
@@ -24,7 +24,7 @@ export class ZapatillasTiendaController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   create(@Body() createZapatillaTiendaDto: CreateZapatillaTiendaDto) {
     return this.zapatillasTiendaService.create(createZapatillaTiendaDto);
   }
@@ -41,7 +41,7 @@ export class ZapatillasTiendaController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateZapatillaTiendaDto: UpdateZapatillaTiendaDto,
@@ -51,7 +51,7 @@ export class ZapatillasTiendaController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Permissions('admin:zapatillas')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.zapatillasTiendaService.remove(id);
   }
