@@ -25,7 +25,8 @@ export class CreateZapatillaTiendaDto {
   modelo_tienda?: string;
 
   @IsNotEmpty()
-  @IsDecimal({ decimal_digits: '2' })
+  @IsNumber()
+  @Type(() => Number)
   precio: number;
 
   @IsOptional()
