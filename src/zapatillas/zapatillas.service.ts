@@ -9,8 +9,12 @@ export class ZapatillasService {
   constructor(private prisma: PrismaService) {}
 
   async create(createZapatillaDto: CreateZapatillaDto) {
+    // Forzar que activa sea true siempre al crear una zapatilla
     return this.prisma.zapatilla.create({
-      data: createZapatillaDto,
+      data: {
+        ...createZapatillaDto,
+        activa: true, // Garantizar que siempre se cree como activa
+      },
     });
   }
 

@@ -26,6 +26,9 @@ export class ZapatillasController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permissions('admin:zapatillas')
   create(@Body() createZapatillaDto: CreateZapatillaDto) {
+    // Garantizar que activa sea true incluso si se proporciona como false
+    // Esta línea es redundante con el cambio en el servicio, pero añade seguridad
+    createZapatillaDto.activa = true;
     return this.zapatillasService.create(createZapatillaDto);
   }
 
