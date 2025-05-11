@@ -37,6 +37,16 @@ export class ZapatillasController {
     return this.zapatillasService.findAll({ marca, activa });
   }
 
+  @Get('sku/:sku')
+  findBySku(@Param('sku') sku: string) {
+    return this.zapatillasService.findBySku(sku);
+  }
+
+  @Get('buscar-exacto')
+  findBySkuExacto(@Query('sku') sku: string) {
+    return this.zapatillasService.findBySkuExacto(sku);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.zapatillasService.findOne(id);

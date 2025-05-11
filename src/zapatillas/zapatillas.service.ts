@@ -84,6 +84,44 @@ export class ZapatillasService {
     return zapatilla;
   }
 
+  /**
+   * Busca una zapatilla por su SKU exacto utilizando findUnique para evitar problemas de unicidad
+   */
+  async findBySku(sku: string) {
+    const zapatilla = await this.prisma.zapatilla.findUnique({
+      where: { sku },
+      include: {
+        zapatillasTienda: {
+          include: {
+            tienda: true,
+            tallas: true,
+          },
+        },
+      },
+    });
+
+    if (!zapatilla) {
+      throw new NotFoundException(`Zapatilla con SKU ${sku} no encontrada`);
+    }
+
+    return zapatilla;
+  }
+  
+  /**
+   * Busca una zapatilla por su SKU de forma exacta para API y servicios externos
+   */
+  async findBySkuExacto(sku: string) {
+    try {
+      // Buscar de forma directa y exacta usando la restricción unique
+      return await this.prisma.zapatilla.findUnique({
+        where: { sku },
+      });
+    } catch (error) {
+      // Si ocurre algún error, simplemente retornar null en lugar de lanzar excepción
+      return null;
+    }
+  }
+
   async update(id: number, updateZapatillaDto: UpdateZapatillaDto) {
     try {
       return await this.prisma.zapatilla.update({
