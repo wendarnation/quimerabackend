@@ -3,6 +3,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateZapatillaDto } from './dto/create-zapatilla.dto';
 import { UpdateZapatillaDto } from './dto/update-zapatilla.dto';
+import { FilterZapatillasDto } from './dto/filter-zapatillas.dto';
+import { PaginatedResult, ZapatillaWithPrices } from './dto/pagination.dto';
 
 @Injectable()
 export class ZapatillasService {
@@ -278,5 +280,222 @@ export class ZapatillasService {
     }
 
     return zapatilla.comentarios;
+  }
+
+  /**
+   * Buscar zapatillas con paginación y filtros avanzados
+   */
+  async findWithFiltersAndPagination(
+    filters: FilterZapatillasDto,
+  ): Promise<PaginatedResult<ZapatillaWithPrices>> {
+    const {
+      marca,
+      modelo,
+      sku,
+      categoria,
+      precio_min,
+      precio_max,
+      activa,
+      search,
+      page = 1,
+      limit = 15,
+      sortBy = 'fecha_creacion',
+      sortOrder = 'desc',
+    } = filters;
+
+    // Construir el WHERE clause
+    const where: any = {};
+
+    // Filtros específicos
+    if (marca) {
+      where.marca = { contains: marca, mode: 'insensitive' };
+    }
+
+    if (modelo) {
+      where.modelo = { contains: modelo, mode: 'insensitive' };
+    }
+
+    if (sku) {
+      where.sku = { contains: sku, mode: 'insensitive' };
+    }
+
+    if (categoria) {
+      where.categoria = { contains: categoria, mode: 'insensitive' };
+    }
+
+    if (activa !== undefined) {
+      where.activa = activa;
+    } else {
+      where.activa = true; // Por defecto solo mostrar activas
+    }
+
+    // Búsqueda general en múltiples campos
+    if (search) {
+      // Si ya hay otros filtros específicos, combinarlos con AND
+      const searchConditions = [
+        { marca: { contains: search, mode: 'insensitive' } },
+        { modelo: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { descripcion: { contains: search, mode: 'insensitive' } },
+        { categoria: { contains: search, mode: 'insensitive' } },
+      ];
+      
+      if (Object.keys(where).length > 0) {
+        // Ya hay filtros, necesitamos combinar con AND
+        const existingWhere = { ...where };
+        where.AND = [
+          existingWhere,
+          { OR: searchConditions }
+        ];
+        // Limpiar las condiciones existentes del nivel raíz
+        Object.keys(existingWhere).forEach(key => {
+          if (key !== 'AND') delete where[key];
+        });
+      } else {
+        // No hay otros filtros, usar OR directamente
+        where.OR = searchConditions;
+      }
+    }
+
+    // Filtro por precio (necesitamos hacer join con zapatillasTienda)
+    if (precio_min !== undefined || precio_max !== undefined) {
+      const priceFilter: any = {};
+      if (precio_min !== undefined) {
+        priceFilter.gte = precio_min;
+      }
+      if (precio_max !== undefined) {
+        priceFilter.lte = precio_max;
+      }
+
+      const priceCondition = {
+        zapatillasTienda: {
+          some: {
+            precio: priceFilter,
+            disponible: true,
+          },
+        },
+      };
+
+      // Si ya hay condiciones AND, agregar a ellas
+      if (where.AND) {
+        where.AND.push(priceCondition);
+      } else if (Object.keys(where).length > 0) {
+        // Convertir condiciones existentes a AND
+        const existingWhere = { ...where };
+        where.AND = [existingWhere, priceCondition];
+        // Limpiar condiciones del nivel raíz
+        Object.keys(existingWhere).forEach(key => {
+          if (key !== 'AND') delete where[key];
+        });
+      } else {
+        // Primera condición
+        where.zapatillasTienda = priceCondition.zapatillasTienda;
+      }
+    }
+
+    // Configurar ordenamiento
+    const orderBy: any = {};
+    if (sortBy === 'precio_min' || sortBy === 'precio_max') {
+      // Para ordenar por precio, necesitamos hacerlo después de la consulta
+    } else {
+      orderBy[sortBy] = sortOrder;
+    }
+
+    // Calcular offset
+    const skip = (page - 1) * limit;
+
+    // Ejecutar consultas
+    const [zapatillas, total] = await Promise.all([
+      this.prisma.zapatilla.findMany({
+        where,
+        include: {
+          zapatillasTienda: {
+            where: { disponible: true },
+            include: {
+              tienda: true,
+            },
+          },
+        },
+        orderBy: Object.keys(orderBy).length > 0 ? orderBy : undefined,
+        skip,
+        take: limit,
+      }),
+      this.prisma.zapatilla.count({ where }),
+    ]);
+
+    // Enriquecer datos con información de precios
+    const enrichedZapatillas: ZapatillaWithPrices[] = zapatillas.map(
+      (zapatilla) => {
+        const precios = zapatilla.zapatillasTienda.map((zt) =>
+          parseFloat(zt.precio.toString()),
+        );
+
+        const precio_min = precios.length > 0 ? Math.min(...precios) : undefined;
+        const precio_max = precios.length > 0 ? Math.max(...precios) : undefined;
+        const precio_promedio =
+          precios.length > 0
+            ? precios.reduce((a, b) => a + b, 0) / precios.length
+            : undefined;
+
+        return {
+          ...zapatilla,
+          precio_min,
+          precio_max,
+          precio_promedio,
+          tiendas_disponibles: zapatilla.zapatillasTienda.length,
+        };
+      },
+    );
+
+    // Ordenar por precio si es necesario
+    if (sortBy === 'precio_min' || sortBy === 'precio_max') {
+      enrichedZapatillas.sort((a, b) => {
+        const aPrice = a[sortBy] || 0;
+        const bPrice = b[sortBy] || 0;
+        return sortOrder === 'asc' ? aPrice - bPrice : bPrice - aPrice;
+      });
+    }
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: enrichedZapatillas,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Paginación simple con 40 elementos por página
+   */
+  async findPaginated40(
+    page: number = 1,
+    filters?: Partial<FilterZapatillasDto>,
+  ): Promise<PaginatedResult<ZapatillaWithPrices>> {
+    return this.findWithFiltersAndPagination({
+      ...filters,
+      page,
+      limit: 40,
+    });
+  }
+
+  /**
+   * Paginación simple con 15 elementos por página
+   */
+  async findPaginated15(
+    page: number = 1,
+    filters?: Partial<FilterZapatillasDto>,
+  ): Promise<PaginatedResult<ZapatillaWithPrices>> {
+    return this.findWithFiltersAndPagination({
+      ...filters,
+      page,
+      limit: 15,
+    });
   }
 }

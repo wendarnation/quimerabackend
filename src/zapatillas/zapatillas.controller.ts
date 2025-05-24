@@ -14,6 +14,7 @@ import {
 import { ZapatillasService } from './zapatillas.service';
 import { CreateZapatillaDto } from './dto/create-zapatilla.dto';
 import { UpdateZapatillaDto } from './dto/update-zapatilla.dto';
+import { FilterZapatillasDto } from './dto/filter-zapatillas.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -35,6 +36,79 @@ export class ZapatillasController {
   @Get()
   findAll(@Query('marca') marca?: string, @Query('activa') activa?: boolean) {
     return this.zapatillasService.findAll({ marca, activa });
+  }
+
+  @Get('paginated/40')
+  findPaginated40(
+    @Query('page') page?: number,
+    @Query('marca') marca?: string,
+    @Query('modelo') modelo?: string,
+    @Query('sku') sku?: string,
+    @Query('categoria') categoria?: string,
+    @Query('precio_min') precio_min?: number,
+    @Query('precio_max') precio_max?: number,
+    @Query('activa') activa?: boolean,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.zapatillasService.findPaginated40(page || 1, {
+      marca,
+      modelo,
+      sku,
+      categoria,
+      precio_min,
+      precio_max,
+      activa,
+      search,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('paginated/15')
+  findPaginated15(
+    @Query('page') page?: number,
+    @Query('marca') marca?: string,
+    @Query('modelo') modelo?: string,
+    @Query('sku') sku?: string,
+    @Query('categoria') categoria?: string,
+    @Query('precio_min') precio_min?: number,
+    @Query('precio_max') precio_max?: number,
+    @Query('activa') activa?: boolean,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.zapatillasService.findPaginated15(page || 1, {
+      marca,
+      modelo,
+      sku,
+      categoria,
+      precio_min,
+      precio_max,
+      activa,
+      search,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('search')
+  searchWithFilters(@Query() filters: FilterZapatillasDto) {
+    return this.zapatillasService.findWithFiltersAndPagination(filters);
+  }
+
+  @Get('search/paginated/40')
+  searchPaginated40(@Query() filters: FilterZapatillasDto) {
+    filters.limit = 40;
+    return this.zapatillasService.findWithFiltersAndPagination(filters);
+  }
+
+  @Get('search/paginated/15')
+  searchPaginated15(@Query() filters: FilterZapatillasDto) {
+    filters.limit = 15;
+    return this.zapatillasService.findWithFiltersAndPagination(filters);
   }
 
   @Get('sku/:sku')
