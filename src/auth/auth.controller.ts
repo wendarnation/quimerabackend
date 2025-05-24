@@ -130,7 +130,39 @@ export class AuthController {
     }
   }
 
-  // Endpoint temporal para pruebas sin token
+  // Endpoint temporal para testing sin token complejo
+  @Post('sync-user-mock')
+  async syncUserMock(
+    @Body()
+    userData: {
+      auth0Id: string;
+      email: string;
+      nombre_completo?: string | null;
+      nickname?: string | null;
+    },
+  ) {
+    try {
+      this.logger.log('Sync-user-mock para:', userData.auth0Id);
+      
+      // Crear o encontrar usuario
+      const user = await this.authService.findOrCreateUser(
+        userData.auth0Id,
+        userData.email,
+        userData.nombre_completo || null,
+        userData.nickname || null,
+        'usuario',
+      );
+
+      return {
+        success: true,
+        user,
+        profileComplete: Boolean(user.nombre_completo && user.nickname),
+      };
+    } catch (error) {
+      this.logger.error('Error en sync-user-mock:', error);
+      throw new InternalServerErrorException('Error al sincronizar usuario');
+    }
+  }
   @Post('sync-user-test')
   async syncUserTest(
     @Body()

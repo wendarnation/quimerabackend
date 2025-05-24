@@ -283,13 +283,34 @@ export class AuthService {
     }
 
     if (existingUser) {
-      // Usuario existente
+      this.logger.log(
+        `Usuario existente encontrado: ${existingUser.email}, rol actual: ${existingUser.rol}`,
+      );
+
+      // 🔑 NUEVA LÓGICA: Solo asignar rol si el usuario NO tiene ninguno
+      // Si el usuario ya tiene un rol, mantenerlo (no sobrescribir)
+      let finalRol = existingUser.rol;
+      
+      // Solo cambiar rol si:
+      // 1. El usuario no tiene rol (null o vacío)
+      // 2. O si es el primer login y no tiene rol asignado
+      if (!existingUser.rol || existingUser.rol === null || existingUser.rol === '') {
+        finalRol = rol; // Asignar el rol por defecto
+        this.logger.log(
+          `Usuario ${auth0Id} no tenía rol, asignando: ${finalRol}`,
+        );
+      } else {
+        this.logger.log(
+          `Usuario ${auth0Id} ya tiene rol '${existingUser.rol}', manteniendo rol existente`,
+        );
+      }
+
       // Si es el primer login o hay datos a actualizar
       if (
         existingUser.first_login &&
         (nombreCompleto !== null ||
           nickname !== null ||
-          rol !== existingUser.rol)
+          finalRol !== existingUser.rol)
       ) {
         const updateData: {
           nombre_completo?: string | null;
@@ -308,8 +329,9 @@ export class AuthService {
           updateData.nickname = nickname;
         }
 
-        if (rol !== existingUser.rol) {
-          updateData.rol = rol;
+        // Solo actualizar rol si realmente cambió
+        if (finalRol !== existingUser.rol) {
+          updateData.rol = finalRol;
         }
 
         const updatedUser = await this.prisma.usuario.update({
@@ -355,15 +377,15 @@ export class AuthService {
         return updatedUser;
       }
 
-      // Para usuarios existentes que no están en primer login, asegurar sincronización de rol
-      if (rol !== existingUser.rol) {
-        return await this.updateUserRole(existingUser.id, rol);
-      }
-
+      // 🔑 IMPORTANTE: Para usuarios existentes, NO cambiar el rol
+      // Solo devolver el usuario tal como está
+      this.logger.log(
+        `Usuario existente ${auth0Id} manteniendo rol actual: ${existingUser.rol}`,
+      );
       return existingUser;
     }
 
-    // Si no existe, crear nuevo usuario
+    // Si no existe, crear nuevo usuario con rol por defecto
     this.logger.log(
       `Creando nuevo usuario con auth0Id ${auth0Id} y rol ${rol}`,
     );
