@@ -65,6 +65,17 @@ export class Auth0ManagementService {
     try {
       const api = await this.getAxiosInstance();
       const response = await api.get(`/users/${userId}`);
+      
+      // 🔍 Log para debug de roles
+      if (response.data) {
+        const userData = response.data;
+        this.logger.debug(`Datos de usuario de Auth0 para ${userId}:`, {
+          user_metadata: userData.user_metadata,
+          app_metadata: userData.app_metadata,
+          roles: userData.roles
+        });
+      }
+      
       return response.data;
     } catch (error) {
       this.logger.error(

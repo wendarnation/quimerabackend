@@ -165,11 +165,32 @@ export class AuthService {
     nickname: string | null = null,
     rol: string = 'usuario',
   ): Promise<Usuario> {
-    this.logger.log(`Creando nuevo usuario con rol: ${rol}`);
+    this.logger.log(`Creando nuevo usuario con rol propuesto: ${rol}`);
 
     // Verificar que email existe y no está vacío
     if (!email) {
       throw new BadRequestException('Email es requerido para crear un usuario');
+    }
+
+    // 🔑 CONSULTAR PRIMERO EL ROL EN AUTH0 antes de crear
+    let finalRol = rol;
+    try {
+      const auth0User = await this.auth0Service.getUser(auth0Id);
+      const auth0Role = 
+        auth0User.user_metadata?.role ||
+        auth0User.app_metadata?.role ||
+        (auth0User.user_metadata?.roles && auth0User.user_metadata.roles[0]) ||
+        null;
+      
+      if (auth0Role) {
+        finalRol = auth0Role;
+        this.logger.log(`Rol encontrado en Auth0 para nuevo usuario: ${finalRol}`);
+      } else {
+        this.logger.log(`No se encontró rol en Auth0, usando rol propuesto: ${finalRol}`);
+      }
+    } catch (auth0Error) {
+      this.logger.warn(`Error al consultar Auth0 para rol del nuevo usuario: ${auth0Error.message}`);
+      // Continuar con el rol propuesto si no se puede consultar Auth0
     }
 
     try {
@@ -205,7 +226,7 @@ export class AuthService {
         data: {
           email: email,
           auth0_id: auth0Id,
-          rol: rol,
+          rol: finalRol, // Usar el rol final (Auth0 o propuesto)
           nombre_completo: nombreCompleto,
           nickname: finalNickname,
           first_login: true,
@@ -226,23 +247,23 @@ export class AuthService {
         const updateResult = await this.auth0Service.updateUser(auth0Id, {
           nombre_completo: newUser.nombre_completo,
           nickname: newUser.nickname,
-          rol: newUser.rol,
+          rol: finalRol, // Asegurar que el rol final se sincronice
         });
         this.logger.log(
-          `Usuario ${auth0Id} sincronizado con Auth0, rol: ${newUser.rol}`,
+          `Usuario ${auth0Id} sincronizado con Auth0, rol: ${finalRol}`,
           updateResult,
         );
 
         // Intentar obtener el rol de Auth0 y asignarlo explícitamente
         try {
-          const role = await this.auth0Service.getRoleByName(newUser.rol);
+          const role = await this.auth0Service.getRoleByName(finalRol);
           if (role) {
             await this.auth0Service.assignRoleToUser(auth0Id, role.id);
             this.logger.log(
-              `Rol ${newUser.rol} asignado directamente en Auth0 para usuario ${auth0Id}`,
+              `Rol ${finalRol} asignado directamente en Auth0 para usuario ${auth0Id}`,
             );
           } else {
-            this.logger.warn(`Rol '${newUser.rol}' no encontrado en Auth0`);
+            this.logger.warn(`Rol '${finalRol}' no encontrado en Auth0`);
           }
         } catch (roleError) {
           this.logger.error(
@@ -287,30 +308,50 @@ export class AuthService {
         `Usuario existente encontrado: ${existingUser.email}, rol actual: ${existingUser.rol}`,
       );
 
-      // 🔑 NUEVA LÓGICA: Solo asignar rol si el usuario NO tiene ninguno
-      // Si el usuario ya tiene un rol, mantenerlo (no sobrescribir)
+      // 🔑 NUEVA LÓGICA: Verificar si necesitamos sincronizar con Auth0
       let finalRol = existingUser.rol;
+      let shouldUpdateRole = false;
       
-      // Solo cambiar rol si:
-      // 1. El usuario no tiene rol (null o vacío)
-      // 2. O si es el primer login y no tiene rol asignado
+      // Si el usuario no tiene rol en BD, consultar Auth0
       if (!existingUser.rol || existingUser.rol === null || existingUser.rol === '') {
-        finalRol = rol; // Asignar el rol por defecto
-        this.logger.log(
-          `Usuario ${auth0Id} no tenía rol, asignando: ${finalRol}`,
-        );
+        try {
+          const auth0User = await this.auth0Service.getUser(auth0Id);
+          const auth0Role = 
+            auth0User.user_metadata?.role ||
+            auth0User.app_metadata?.role ||
+            (auth0User.user_metadata?.roles && auth0User.user_metadata.roles[0]) ||
+            null;
+          
+          if (auth0Role) {
+            finalRol = auth0Role;
+            shouldUpdateRole = true;
+            this.logger.log(
+              `Usuario ${auth0Id} sin rol en BD, usando rol de Auth0: ${finalRol}`,
+            );
+          } else {
+            finalRol = rol; // Usar rol proporcionado como fallback
+            shouldUpdateRole = true;
+            this.logger.log(
+              `Usuario ${auth0Id} sin rol en BD y Auth0, asignando: ${finalRol}`,
+            );
+          }
+        } catch (auth0Error) {
+          this.logger.warn(`Error al consultar Auth0 para rol: ${auth0Error.message}`);
+          finalRol = rol; // Usar rol proporcionado como fallback
+          shouldUpdateRole = true;
+        }
       } else {
         this.logger.log(
           `Usuario ${auth0Id} ya tiene rol '${existingUser.rol}', manteniendo rol existente`,
         );
       }
 
-      // Si es el primer login o hay datos a actualizar
+      // Si es el primer login o hay datos a actualizar o necesitamos actualizar rol
       if (
         existingUser.first_login &&
         (nombreCompleto !== null ||
           nickname !== null ||
-          finalRol !== existingUser.rol)
+          shouldUpdateRole)
       ) {
         const updateData: {
           nombre_completo?: string | null;
@@ -329,8 +370,8 @@ export class AuthService {
           updateData.nickname = nickname;
         }
 
-        // Solo actualizar rol si realmente cambió
-        if (finalRol !== existingUser.rol) {
+        // Actualizar rol si debe actualizarse
+        if (shouldUpdateRole) {
           updateData.rol = finalRol;
         }
 

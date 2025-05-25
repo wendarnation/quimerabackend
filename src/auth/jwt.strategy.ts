@@ -130,7 +130,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         this.logger.log('Usuario no encontrado, creando nuevo usuario');
         isFirstLogin = true;
 
-        // Determinar rol inicial solo para usuarios nuevos
+        // 🔑 NUEVA LÓGICA: Consultar rol actual en Auth0 antes de crear usuario
+        let auth0UserRole = 'usuario'; // Rol por defecto
+        
+        if (!isClientToken) {
+          try {
+            // Obtener datos del usuario directamente de Auth0
+            const auth0User = await this.authService.auth0Service.getUser(auth0Id);
+            
+            // Extraer rol de Auth0 (puede estar en diferentes lugares)
+            const auth0Role = 
+              auth0User.user_metadata?.role ||
+              auth0User.app_metadata?.role ||
+              (auth0User.user_metadata?.roles && auth0User.user_metadata.roles[0]) ||
+              null;
+            
+            if (auth0Role) {
+              auth0UserRole = auth0Role;
+              this.logger.log(`Rol encontrado en Auth0: ${auth0UserRole}`);
+            } else {
+              this.logger.log('No se encontró rol en Auth0, usando rol por defecto');
+            }
+          } catch (auth0Error) {
+            this.logger.warn(`Error al consultar Auth0 para obtener rol: ${auth0Error.message}`);
+            // Continuar con lógica de fallback si no se puede consultar Auth0
+          }
+        }
+        
+        // Determinar rol inicial para usuarios nuevos
         if (isClientToken) {
           // Para tokens de cliente, asignar rol admin si tiene el permiso admin:zapatillas
           if (permissions.includes('admin:zapatillas')) {
@@ -139,9 +166,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           } else {
             currentRol = 'sistema';
           }
-        } else if (permissions && permissions.length > 0) {
-          this.logger.log('Usuario nuevo con permisos, asignando rol admin');
-          currentRol = 'admin';
+        } else {
+          // 🔑 PRIORIDAD: Usar rol de Auth0 si existe, sino usar lógica de permisos
+          if (auth0UserRole && auth0UserRole !== 'usuario') {
+            currentRol = auth0UserRole;
+            this.logger.log(`Usando rol de Auth0: ${currentRol}`);
+          } else if (permissions && permissions.length > 0) {
+            this.logger.log('Usuario nuevo con permisos, asignando rol admin');
+            currentRol = 'admin';
+          } else {
+            currentRol = 'usuario';
+            this.logger.log('Usuario nuevo sin rol específico, asignando rol usuario');
+          }
         }
 
         try {
