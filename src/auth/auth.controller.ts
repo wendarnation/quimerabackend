@@ -176,20 +176,16 @@ export class AuthController {
       first_login?: boolean;
     },
   ) {
-    // Usar first_login proporcionado o asumir true para usuarios nuevos
-    const isFirstLogin =
-      userData.first_login !== undefined ? userData.first_login : true;
-
-    // Determinar el rol basado en permisos solo si es primer login
-    let rol = userData.rol || 'usuario';
-    if (
-      isFirstLogin &&
-      userData.permissions &&
-      userData.permissions.length > 0
-    ) {
-      rol = 'admin';
-      this.logger.log('Test: Usuario con permisos, asignando rol admin');
-    }
+    this.logger.log(`🔄 Sync-user-test para: ${userData.auth0Id}`);
+    this.logger.log(`🔑 Permisos recibidos:`, userData.permissions);
+    
+    // 🔑 LÓGICA SIMPLIFICADA: Determinar rol basado en permisos
+    const hasAdminPermissions = userData.permissions?.includes('admin:zapatillas') || false;
+    const determinedRole = hasAdminPermissions ? 'admin' : 'usuario';
+    
+    this.logger.log(
+      `🎯 Rol determinado: ${determinedRole} (tiene admin:zapatillas: ${hasAdminPermissions})`,
+    );
 
     // Versión de prueba sin autorización
     const user = await this.authService.findOrCreateUser(
@@ -197,12 +193,12 @@ export class AuthController {
       userData.email,
       userData.nombre_completo || null,
       userData.nickname || null,
-      rol,
+      determinedRole, // Usar rol determinado por permisos
     );
 
     // Forzar sincronización con Auth0 después de crear/encontrar el usuario
     await this.authService.auth0Service.updateUser(userData.auth0Id, {
-      rol: rol,
+      rol: determinedRole,
       nombre_completo: user.nombre_completo,
       nickname: user.nickname,
     });
@@ -211,6 +207,8 @@ export class AuthController {
       success: true,
       user,
       profileComplete: Boolean(user.nombre_completo && user.nickname),
+      determinedRole, // Añadir para debug
+      receivedPermissions: userData.permissions || [],
     };
   }
 
