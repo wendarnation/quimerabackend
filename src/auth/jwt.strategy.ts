@@ -130,36 +130,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         this.logger.log('Usuario no encontrado, creando nuevo usuario');
         isFirstLogin = true;
 
-        // 🔑 NUEVA LÓGICA: Consultar rol actual en Auth0 antes de crear usuario
-        let auth0UserRole = 'usuario'; // Rol por defecto
-        
-        if (!isClientToken) {
-          try {
-            // Obtener datos del usuario directamente de Auth0
-            const auth0User = await this.authService.auth0Service.getUser(auth0Id);
-            
-            // Extraer rol de Auth0 (puede estar en diferentes lugares)
-            const auth0Role = 
-              auth0User.user_metadata?.role ||
-              auth0User.app_metadata?.role ||
-              (auth0User.user_metadata?.roles && auth0User.user_metadata.roles[0]) ||
-              null;
-            
-            if (auth0Role) {
-              auth0UserRole = auth0Role;
-              this.logger.log(`Rol encontrado en Auth0: ${auth0UserRole}`);
-            } else {
-              this.logger.log('No se encontró rol en Auth0, usando rol por defecto');
-            }
-          } catch (auth0Error) {
-            this.logger.warn(`Error al consultar Auth0 para obtener rol: ${auth0Error.message}`);
-            // Continuar con lógica de fallback si no se puede consultar Auth0
-          }
-        }
-        
-        // Determinar rol inicial para usuarios nuevos
+        // 🔑 LÓGICA SIMPLIFICADA: Determinar rol basado en permisos
         if (isClientToken) {
-          // Para tokens de cliente, asignar rol admin si tiene el permiso admin:zapatillas
+          // Para tokens de cliente, verificar permiso admin:zapatillas
           if (permissions.includes('admin:zapatillas')) {
             this.logger.log('Token de cliente con permiso admin:zapatillas, asignando rol admin');
             currentRol = 'admin';
@@ -167,16 +140,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             currentRol = 'sistema';
           }
         } else {
-          // 🔑 PRIORIDAD: Usar rol de Auth0 si existe, sino usar lógica de permisos
-          if (auth0UserRole && auth0UserRole !== 'usuario') {
-            currentRol = auth0UserRole;
-            this.logger.log(`Usando rol de Auth0: ${currentRol}`);
-          } else if (permissions && permissions.length > 0) {
-            this.logger.log('Usuario nuevo con permisos, asignando rol admin');
+          // Para usuarios normales, verificar permiso admin:zapatillas
+          if (permissions.includes('admin:zapatillas')) {
+            this.logger.log('Usuario con permiso admin:zapatillas, asignando rol admin');
             currentRol = 'admin';
           } else {
+            this.logger.log('Usuario sin permisos de admin, asignando rol usuario');
             currentRol = 'usuario';
-            this.logger.log('Usuario nuevo sin rol específico, asignando rol usuario');
           }
         }
 
@@ -213,27 +183,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           }
         }
       } else {
-        // Para tokens de cliente existentes, actualizar rol si tiene permiso admin:zapatillas
-        if (isClientToken && permissions.includes('admin:zapatillas') && user.rol !== 'admin') {
-          this.logger.log('Token de cliente con permiso admin:zapatillas, actualizando rol a admin');
+        // 🔑 LÓGICA SIMPLIFICADA: Actualizar rol basado en permisos actuales
+        let shouldUpdateRole = false;
+        let newRole = currentRol;
+        
+        // Determinar qué rol debería tener según permisos actuales
+        const shouldBeAdmin = permissions.includes('admin:zapatillas');
+        const expectedRole = shouldBeAdmin ? 'admin' : 'usuario';
+        
+        // Si el rol actual no coincide con lo que debería ser, actualizar
+        if (currentRol !== expectedRole) {
+          newRole = expectedRole;
+          shouldUpdateRole = true;
+          this.logger.log(
+            `Usuario ${auth0Id} tiene permisos que no coinciden con su rol. Actual: ${currentRol}, Esperado: ${expectedRole}`,
+          );
+        }
+        
+        if (shouldUpdateRole) {
           try {
-            user = await this.authService.updateUserRole(user.id, 'admin');
-            currentRol = 'admin';
+            user = await this.authService.updateUserRole(user.id, newRole);
+            currentRol = newRole;
+            this.logger.log(`Rol actualizado a ${newRole} para usuario ${user.id}`);
           } catch (updateError) {
             this.logger.error(`Error al actualizar rol: ${updateError.message}`);
-            // Continuamos con el rol actual en caso de error
-          }
-        }
-        // Solo actualizar rol en primer login si tiene permisos y no es ya admin
-        if (isFirstLogin && permissions.length > 0 && user.rol !== 'admin') {
-          this.logger.log('Primer login con permisos, actualizando a admin');
-          try {
-            user = await this.authService.updateUserRole(user.id, 'admin');
-            currentRol = 'admin';
-          } catch (updateError) {
-            this.logger.error(
-              `Error al actualizar rol: ${updateError.message}`,
-            );
             // Continuamos con el rol actual en caso de error
           }
         }
