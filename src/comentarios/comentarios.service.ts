@@ -34,6 +34,7 @@ export class ComentariosService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -48,6 +49,7 @@ export class ComentariosService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -65,6 +67,7 @@ export class ComentariosService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
       },
@@ -82,6 +85,7 @@ export class ComentariosService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -116,6 +120,7 @@ export class ComentariosService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -126,7 +131,14 @@ export class ComentariosService {
   async remove(id: number, usuarioId: number) {
     const comentario = await this.findOne(id);
 
-    if (comentario.usuario_id !== usuarioId) {
+    // Obtener el usuario para verificar si es admin
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { rol: true },
+    });
+
+    // Permitir eliminar si es el propietario del comentario o si es admin
+    if (comentario.usuario_id !== usuarioId && usuario?.rol !== 'admin') {
       throw new ForbiddenException(
         'No tienes permiso para eliminar este comentario',
       );

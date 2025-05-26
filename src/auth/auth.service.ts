@@ -308,7 +308,7 @@ export class AuthService {
       if (
         existingUser.first_login &&
         (nombreCompleto !== null ||
-          nickname !== null ||
+          (nickname !== null && !existingUser.nickname) || // Solo actualizar nickname si no existe en BD
           shouldUpdateRole)
       ) {
         const updateData: {
@@ -324,7 +324,8 @@ export class AuthService {
           updateData.nombre_completo = nombreCompleto;
         }
 
-        if (nickname !== null) {
+        // Solo actualizar nickname si el usuario no tiene uno en la BD
+        if (nickname !== null && !existingUser.nickname) {
           updateData.nickname = nickname;
         }
 

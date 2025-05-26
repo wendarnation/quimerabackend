@@ -46,6 +46,7 @@ export class ValoracionesService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -60,6 +61,7 @@ export class ValoracionesService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -77,6 +79,7 @@ export class ValoracionesService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
       },
@@ -91,6 +94,7 @@ export class ValoracionesService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
@@ -125,6 +129,7 @@ export class ValoracionesService {
           select: {
             id: true,
             email: true,
+            nickname: true,
           },
         },
         zapatilla: true,
