@@ -18,6 +18,7 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Permissions } from '../auth/permissions.decorator';
 
 @Controller('usuarios')
 export class UsuariosController {
@@ -33,6 +34,7 @@ export class UsuariosController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permissions('admin:zapatillas')
   findAll() {
     return this.usuariosService.findAll();
   }
@@ -135,8 +137,15 @@ export class UsuariosController {
 
   @Delete('profile')
   @UseGuards(JwtAuthGuard)
-  removeProfile(@Request() req) {
-    return this.usuariosService.remove(req.user.id);
+  async removeProfile(@Request() req) {
+    // Extraer el auth0Id del token JWT
+    const auth0Id = req.user.auth0Id;
+
+    // Buscar primero al usuario por auth0Id
+    const usuario = await this.usuariosService.findByAuth0Id(auth0Id);
+
+    // Eliminar usando el ID de la base de datos
+    return this.usuariosService.remove(usuario.id);
   }
 
   // Endpoint para verificar rol de admin (debe ir antes de las rutas con :id)
@@ -160,6 +169,7 @@ export class UsuariosController {
   @Patch('change-role/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permissions('admin:zapatillas')
   async changeUserRole(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { rol: string }
@@ -187,6 +197,7 @@ export class UsuariosController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permissions('admin:zapatillas')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usuariosService.remove(id);
   }

@@ -215,7 +215,7 @@ export class AuthController {
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  @Permissions('admin-zapatillas')
+  @Permissions('admin:zapatillas')
   async getUsers(@Request() req: { user: UserPayload }) {
     this.logger.log(
       `Solicitando lista de usuarios por: ${req.user.email}, Rol: ${req.user.rol}, Permisos: ${req.user.permissions}`,
@@ -253,7 +253,7 @@ export class AuthController {
       permissions: req.user.permissions || [],
       hasAdminRole: req.user.rol === 'admin',
       hasAdminZapatillasPermission: (req.user.permissions || []).includes(
-        'admin-zapatillas',
+        'admin:zapatillas',
       ),
     };
   }
@@ -261,7 +261,7 @@ export class AuthController {
   @Post('update-user-role')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  @Permissions('admin-zapatillas')
+  @Permissions('admin:zapatillas')
   async updateUserRole(
     @Request() req: { user: UserPayload },
     @Body()
