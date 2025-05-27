@@ -221,8 +221,13 @@ export class AuthController {
       `Solicitando lista de usuarios por: ${req.user.email}, Rol: ${req.user.rol}, Permisos: ${req.user.permissions}`,
     );
 
-    // Obtener todos los usuarios de la base de datos
+    // Obtener todos los usuarios de la base de datos, EXCLUYENDO al usuario actual
     const users = await this.prisma.usuario.findMany({
+      where: {
+        NOT: {
+          id: req.user.id // Excluir al usuario actual
+        }
+      },
       select: {
         id: true,
         email: true,
@@ -274,8 +279,8 @@ export class AuthController {
       `Actualización de rol solicitada por: ${req.user.email}, Usuario target: ${userData.userId}, Nuevo rol: ${userData.newRole}`,
     );
 
-    // Validar el rol proporcionado
-    const validRoles = ['usuario', 'admin', 'editor', 'moderador'];
+    // Validar el rol proporcionado - SOLO usuario o admin
+    const validRoles = ['usuario', 'admin'];
     if (!validRoles.includes(userData.newRole)) {
       throw new BadRequestException(
         `Rol inválido. Roles permitidos: ${validRoles.join(', ')}`,

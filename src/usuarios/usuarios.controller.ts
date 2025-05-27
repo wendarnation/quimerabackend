@@ -11,6 +11,7 @@ import {
   UseGuards,
   Request,
   Headers,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -35,8 +36,9 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Permissions('admin:zapatillas')
-  findAll() {
-    return this.usuariosService.findAll();
+  findAll(@Request() req) {
+    // Excluir al usuario actual de la lista
+    return this.usuariosService.findAllExcept(req.user.id);
   }
 
   @Get('profile')
@@ -174,6 +176,11 @@ export class UsuariosController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { rol: string }
   ) {
+    // Validar que solo se permitan roles 'usuario' y 'admin'
+    const validRoles = ['usuario', 'admin'];
+    if (!validRoles.includes(body.rol)) {
+      throw new BadRequestException(`Rol inválido. Roles permitidos: ${validRoles.join(', ')}`);
+    }
     return this.usuariosService.update(id, { rol: body.rol });
   }
 

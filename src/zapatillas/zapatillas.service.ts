@@ -331,29 +331,40 @@ export class ZapatillasService {
 
     // Búsqueda general en múltiples campos
     if (search) {
-      // Si ya hay otros filtros específicos, combinarlos con AND
-      const searchConditions = [
-        { marca: { contains: search, mode: 'insensitive' } },
-        { modelo: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-        { descripcion: { contains: search, mode: 'insensitive' } },
-        { categoria: { contains: search, mode: 'insensitive' } },
-      ];
+      // Dividir la búsqueda en palabras individuales para buscar todas juntas
+      const searchTerms = search.trim().split(/\s+/).filter(term => term.length > 0);
       
-      if (Object.keys(where).length > 0) {
-        // Ya hay filtros, necesitamos combinar con AND
-        const existingWhere = { ...where };
-        where.AND = [
-          existingWhere,
-          { OR: searchConditions }
-        ];
-        // Limpiar las condiciones existentes del nivel raíz
-        Object.keys(existingWhere).forEach(key => {
-          if (key !== 'AND') delete where[key];
-        });
-      } else {
-        // No hay otros filtros, usar OR directamente
-        where.OR = searchConditions;
+      if (searchTerms.length > 0) {
+        // Para cada término, buscar en todos los campos
+        const searchConditions = searchTerms.map(term => ({
+          OR: [
+            { marca: { contains: term, mode: 'insensitive' } },
+            { modelo: { contains: term, mode: 'insensitive' } },
+            { sku: { contains: term, mode: 'insensitive' } },
+            { descripcion: { contains: term, mode: 'insensitive' } },
+            { categoria: { contains: term, mode: 'insensitive' } },
+          ]
+        }));
+        
+        if (Object.keys(where).length > 0) {
+          // Ya hay filtros, necesitamos combinar con AND
+          const existingWhere = { ...where };
+          where.AND = [
+            existingWhere,
+            ...searchConditions // Cada término debe coincidir (AND)
+          ];
+          // Limpiar las condiciones existentes del nivel raíz
+          Object.keys(existingWhere).forEach(key => {
+            if (key !== 'AND') delete where[key];
+          });
+        } else {
+          // No hay otros filtros, usar AND para todos los términos
+          if (searchConditions.length === 1) {
+            where.OR = searchConditions[0].OR;
+          } else {
+            where.AND = searchConditions;
+          }
+        }
       }
     }
 

@@ -76,6 +76,26 @@ export class UsuariosService {
     });
   }
 
+  async findAllExcept(excludeId: number) {
+    return this.prisma.usuario.findMany({
+      where: {
+        id: {
+          not: excludeId // Excluir al usuario con este ID
+        }
+      },
+      select: {
+        id: true,
+        email: true,
+        rol: true,
+        fecha_registro: true,
+        auth0_id: true,
+        nombre_completo: true,
+        nickname: true,
+        first_login: true,
+      } as any,
+    });
+  }
+
   async findOne(id: number) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },
