@@ -37,6 +37,10 @@ export class FilterZapatillasDto {
 
   @IsOptional()
   @IsString()
+  talla?: string; // Para filtrar por talla disponible
+
+  @IsOptional()
+  @IsString()
   search?: string; // Para búsqueda general en múltiples campos
 
   @IsOptional()

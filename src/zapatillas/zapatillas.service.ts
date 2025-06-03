@@ -297,6 +297,7 @@ export class ZapatillasService {
       precio_max,
       activa,
       search,
+      talla,
       page = 1,
       limit = 15,
       sortBy = 'fecha_creacion',
@@ -404,6 +405,39 @@ export class ZapatillasService {
       }
     }
 
+    // Filtro por talla (necesitamos hacer join con zapatillasTienda y tallas)
+    if (talla) {
+      const sizeCondition = {
+        zapatillasTienda: {
+          some: {
+            disponible: true,
+            tallas: {
+              some: {
+                talla: talla,
+                disponible: true,
+              },
+            },
+          },
+        },
+      };
+
+      // Si ya hay condiciones AND, agregar a ellas
+      if (where.AND) {
+        where.AND.push(sizeCondition);
+      } else if (Object.keys(where).length > 0) {
+        // Convertir condiciones existentes a AND
+        const existingWhere = { ...where };
+        where.AND = [existingWhere, sizeCondition];
+        // Limpiar condiciones del nivel raíz
+        Object.keys(existingWhere).forEach(key => {
+          if (key !== 'AND') delete where[key];
+        });
+      } else {
+        // Primera condición
+        where.zapatillasTienda = sizeCondition.zapatillasTienda;
+      }
+    }
+
     // Configurar ordenamiento
     const orderBy: any = {};
     if (sortBy === 'precio_min' || sortBy === 'precio_max') {
@@ -424,6 +458,7 @@ export class ZapatillasService {
             where: { disponible: true },
             include: {
               tienda: true,
+              tallas: true,
             },
           },
         },
